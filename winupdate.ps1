@@ -8,7 +8,7 @@
 .NOTES
     Author: [Your Name]
     Date: [Current Date]
-    Version: 1.4
+    Version: 1.5
 
 .PARAMETERS
     None
@@ -80,8 +80,8 @@ function Install-WindowsUpdates {
     try {
         $updates = Install-WindowsUpdate -AcceptAll -Install -ErrorAction Stop
         if ($updates) {
-            foreach ($update in $updates) {
-                Write-Host "Installed update: $($update.KB) - $($update.Size) - $($update.Result)"
+            $updates | ForEach-Object {
+                Write-Host "Installed update: $($_.KB) - $($_.Size) - $($_.Result)"
             }
             return $true
         } else {
