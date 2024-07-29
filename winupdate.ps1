@@ -8,7 +8,7 @@
 .NOTES
     Author: [Your Name]
     Date: [Current Date]
-    Version: 1.3
+    Version: 1.4
 
 .PARAMETERS
     None
@@ -79,8 +79,14 @@ function Import-PSWindowsUpdateModule {
 function Install-WindowsUpdates {
     try {
         $updates = Install-WindowsUpdate -AcceptAll -Install -ErrorAction Stop
-        foreach ($update in $updates) {
-            Write-Host "Installed update: $($update.KB) - $($update.Size) - $($update.Result)"
+        if ($updates) {
+            foreach ($update in $updates) {
+                Write-Host "Installed update: $($update.KB) - $($update.Size) - $($update.Result)"
+            }
+            return $true
+        } else {
+            Write-Host "No updates downloaded and staged."
+            return $false
         }
     } catch {
         Write-Error "Failed to install Windows updates: $_"
@@ -135,16 +141,20 @@ try {
         Install-Winget
         Install-PSWindowsUpdateModule -ModuleName PSWindowsUpdate -MinimumVersion 2.2.0.2
         Import-PSWindowsUpdateModule
-        Install-WindowsUpdates
+        
+        $updatesInstalled = Install-WindowsUpdates
+        if ($updatesInstalled) {
+            Write-Host "Windows updates have been downloaded and staged."
 
-        Write-Host "Windows updates have been downloaded and staged."
-
-        # Prompt user to confirm manual reboot
-        $confirmReboot = Read-Host "Do you want to proceed with a manual reboot to complete the update installation? (y/n)"
-        if ($confirmReboot -eq "y" -or $confirmReboot -eq "yes") {
-            Write-Host "Please reboot the system to complete the update installation."
+            # Prompt user to confirm manual reboot
+            $confirmReboot = Read-Host "Do you want to proceed with a manual reboot to complete the update installation? (y/n)"
+            if ($confirmReboot -eq "y" -or $confirmReboot -eq "yes") {
+                Write-Host "Please reboot the system to complete the update installation."
+            } else {
+                Write-Host "Reboot cancelled."
+            }
         } else {
-            Write-Host "Reboot cancelled."
+            Write-Host "Process complete. No updates were downloaded or installed."
         }
     }
 } catch {
