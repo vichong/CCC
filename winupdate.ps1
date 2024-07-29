@@ -8,7 +8,7 @@
 .NOTES
     Author: [Your Name]
     Date: [Current Date]
-    Version: 1.1
+    Version: 1.3
 
 .PARAMETERS
     None
@@ -28,8 +28,13 @@ function Install-NuGetPackageProvider {
     )
 
     try {
-        Install-PackageProvider -Name $Name -MinimumVersion $MinimumVersion -Force -ErrorAction Stop
-        Write-Host "$Name package provider installed successfully."
+        $provider = Get-PackageProvider -Name $Name -ErrorAction SilentlyContinue
+        if ($provider -and [version]$provider.Version -ge [version]$MinimumVersion) {
+            Write-Host "$Name package provider is already installed and up-to-date."
+        } else {
+            Install-PackageProvider -Name $Name -MinimumVersion $MinimumVersion -Force -ErrorAction Stop
+            Write-Host "$Name package provider installed successfully."
+        }
     } catch {
         Write-Error "Failed to install $Name package provider: $_"
         exit 1
@@ -38,11 +43,23 @@ function Install-NuGetPackageProvider {
 
 # Function to install the PSWindowsUpdate module
 function Install-PSWindowsUpdateModule {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ModuleName,
+        [Parameter(Mandatory=$true)]
+        [string]$MinimumVersion
+    )
+
     try {
-        Install-Module PSWindowsUpdate -Force -ErrorAction Stop
-        Write-Host "PSWindowsUpdate module installed successfully."
+        $module = Get-Module -ListAvailable -Name $ModuleName -ErrorAction SilentlyContinue
+        if ($module -and [version]$module.Version -ge [version]$MinimumVersion) {
+            Write-Host "$ModuleName module is already installed and up-to-date."
+        } else {
+            Install-Module -Name $ModuleName -Force -ErrorAction Stop
+            Write-Host "$ModuleName module installed successfully."
+        }
     } catch {
-        Write-Error "Failed to install PSWindowsUpdate module: $_"
+        Write-Error "Failed to install $ModuleName module: $_"
         exit 1
     }
 }
@@ -61,21 +78,32 @@ function Import-PSWindowsUpdateModule {
 # Function to install all Windows updates
 function Install-WindowsUpdates {
     try {
-        Install-WindowsUpdate -AcceptAll -Install -ErrorAction Stop
-        Write-Host "Windows updates have been downloaded and staged."
+        $updates = Install-WindowsUpdate -AcceptAll -Install -ErrorAction Stop
+        foreach ($update in $updates) {
+            Write-Host "Installed update: $($update.KB) - $($update.Size) - $($update.Result)"
+        }
     } catch {
         Write-Error "Failed to install Windows updates: $_"
         exit 1
     }
 }
 
-# Function to install the winget-install script
-function Install-WingetInstallScript {
+# Function to install the winget package manager
+function Install-Winget {
     try {
+        $wingetPath = "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\winget.exe"
+        if (Test-Path $wingetPath) {
+            $wingetVersion = (& $wingetPath --version) -match "v([\d\.]+)" | Out-Null ; $Matches[1]
+            $latestVersion = (Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-cli/releases/latest").tag_name.TrimStart('v')
+            if ([version]$wingetVersion -ge [version]$latestVersion) {
+                Write-Host "winget is already installed and up-to-date."
+                return
+            }
+        }
         Install-Script winget-install -Force -ErrorAction Stop
-        Write-Host "winget-install script installed successfully."
+        Write-Host "winget installed successfully."
     } catch {
-        Write-Error "Failed to install winget-install script: $_"
+        Write-Error "Failed to install winget: $_"
         exit 1
     }
 }
@@ -104,7 +132,8 @@ try {
         Write-Warning "No internet connection detected. Skipping online operations."
     } else {
         Install-NuGetPackageProvider -Name NuGet -MinimumVersion 2.8.5.201
-        Install-PSWindowsUpdateModule
+        Install-Winget
+        Install-PSWindowsUpdateModule -ModuleName PSWindowsUpdate -MinimumVersion 2.2.0.2
         Import-PSWindowsUpdateModule
         Install-WindowsUpdates
 
@@ -117,9 +146,6 @@ try {
         } else {
             Write-Host "Reboot cancelled."
         }
-
-        # Uncomment the next line if winget-install script is needed
-        Install-WingetInstallScript
     }
 } catch {
     Write-Error "An unexpected error occurred: $_"
