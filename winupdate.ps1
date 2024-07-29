@@ -83,7 +83,9 @@ function Install-WingetInstallScript {
 # Function to check for internet connectivity
 function Test-InternetConnectivity {
     try {
-        if (Test-NetConnection www.google.com -Quiet) {
+        $request = [System.Net.WebRequest]::Create("http://www.google.com")
+        $response = $request.GetResponse()
+        if ($response.StatusCode -eq 200) {
             Write-Host "Internet connection detected."
             return $true
         } else {
@@ -117,7 +119,7 @@ try {
         }
 
         # Uncomment the next line if winget-install script is needed
-        # Install-WingetInstallScript
+        Install-WingetInstallScript
     }
 } catch {
     Write-Error "An unexpected error occurred: $_"
