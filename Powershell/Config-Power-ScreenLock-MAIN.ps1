@@ -1,7 +1,3 @@
-# Main Power Settings Script
-# To be hosted on GitHub
-
-# Function definitions
 function Set-PowerSetting {
     param (
         [string]$SettingName,
@@ -26,12 +22,24 @@ function Set-HibernationState {
     # Function implementation
 }
 
-function Apply-PowerSettings {
+function Invoke-PowerSettingsConfiguration {
     param (
         [hashtable]$Params
     )
-    # Function implementation that calls the other functions as needed
+    # Main function that applies all power settings
+    Set-HibernationState -Enable $Params.EnableHibernation
+    
+    foreach ($setting in $Params.AC.Keys) {
+        Set-PowerSetting -SettingName $setting -SettingValue $Params.AC[$setting] -PowerCondition "ac"
+    }
+    
+    foreach ($setting in $Params.DC.Keys) {
+        Set-PowerSetting -SettingName $setting -SettingValue $Params.DC[$setting] -PowerCondition "dc"
+    }
+    
+    Set-DeviceLockParameters -Enabled $Params.DevicePasswordEnabled -MaxInactivityTime $Params.MaxInactivityTimeDeviceLock
+    
+    # Add any other necessary configurations here
 }
 
-# Export only the main function that will be called from the tenant-specific script
-Export-ModuleMember -Function Apply-PowerSettings
+# No need for Export-ModuleMember in a .ps1 file
